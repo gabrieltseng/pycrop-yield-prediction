@@ -17,7 +17,7 @@ class ModelBase:
     Base class for all models
     """
     def __init__(self, model, model_weight, model_bias, model_type, savedir, use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                  device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         self.savedir = savedir / model_type
         self.savedir.mkdir(parents=True, exist_ok=True)

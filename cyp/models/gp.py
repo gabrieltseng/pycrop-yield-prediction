@@ -6,7 +6,7 @@ class GaussianProcess:
     """
     The crop yield Gaussian process
     """
-    def __init__(self, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01):
+    def __init__(self, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01):
         self.sigma = sigma
         self.r_loc = r_loc
         self.r_year = r_year

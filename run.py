@@ -120,7 +120,7 @@ class RunTask:
                   stride_list=None, dense_features=None, savedir=Path('data/models'),
                   times=None, pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
                   starter_learning_rate=1e-3, l1_weight=1.5, patience=5, use_gp=True,
-                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train a CNN model
@@ -175,8 +175,8 @@ class RunTask:
             The length scale for the location data (latitudes and longitudes)
         r_year: float, default=1.5
             The length scale for the time data (years)
-        sigma_e: float, default=0.01
-            Noise variance
+        sigma_e: float, default=0.32
+            Noise variance. 0.32 **2 ~= 0.1
         sigma_b: float, default=0.01
             Parameter variance; the variance on B
 
@@ -198,7 +198,7 @@ class RunTask:
     def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128,
                   rnn_dropout=0.75, dense_features=None, savedir=Path('data/models'), times=None, pred_years=None,
                   num_runs=2, train_steps=10000, batch_size=32, starter_learning_rate=1e-3, l1_weight=0, patience=5,
-                  use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
+                  use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train an RNN model
@@ -251,8 +251,8 @@ class RunTask:
             The length scale for the location data (latitudes and longitudes)
         r_year: float, default=1.5
             The length scale for the time data (years)
-        sigma_e: float, default=0.01
-            Noise variance
+        sigma_e: float, default=0.32
+            Noise variance. 0.32 **2 ~= 0.1
         sigma_b: float, default=0.01
             Parameter variance; the variance on B
 
