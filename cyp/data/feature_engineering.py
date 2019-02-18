@@ -110,7 +110,8 @@ class Engineer:
             imhist = []
             for i in range(im.shape[-1]):
                 density, _ = np.histogram(im[:, :, i], bin_seq, density=False)
-                imhist.append(density)
+                # max() prevents divide by 0
+                imhist.append(density / max(1, density.sum()))
             if channels_first:
                 hist.append(np.stack(imhist))
             else:
@@ -162,11 +163,10 @@ class Engineer:
                     image = np.sum(image, axis=(0, 1)) / np.count_nonzero(image) * image.shape[2]
                     image[np.isnan(image)] = 0
                 elif generate == 'histogram':
-                    image = self._calculate_histogram(image, bands=num_bands, num_bins=num_bins,
+                    image = self._calculate_histogram(image, bands=num_bands,
+                                                      num_bins=num_bins,
                                                       max_bin_val=max_bin_val,
                                                       channels_first=channels_first)
-                    image[np.isnan(image)] = 0
-
                 output_images.append(image)
                 yields.append(yield_data.Value)
                 years.append(year)
