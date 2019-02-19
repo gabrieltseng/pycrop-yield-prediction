@@ -53,6 +53,9 @@ class RNNModel(ModelBase):
         super().__init__(model, model_weight, model_bias, 'rnn', savedir, use_gp, sigma, r_loc, r_year,
                          sigma_e, sigma_b, device)
 
+    def reinitialize_model(self, time=None):
+        self.model.initialize_weights()
+
 
 class RNNet(nn.Module):
     """

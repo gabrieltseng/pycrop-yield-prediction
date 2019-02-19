@@ -37,7 +37,7 @@ class ModelBase:
             self.gp = GaussianProcess(sigma, r_loc, r_year, sigma_e, sigma_b)
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
-            times=None, pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
+            times='all', pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
             starter_learning_rate=1e-3, l1_weight=1.5, patience=5):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
@@ -48,9 +48,9 @@ class ModelBase:
         ----------
         path_to_histogram: pathlib Path, default=Path('data/img_output/histogram_all_full.npz')
             The location of the training data
-        times: int, list, or None, default=None
-            Which time indices to train the model on. If None, the default values from the paper
-            for the full run ([32]) are used.
+        times: {'all', 'realtime'}
+            Which time indices to train the model on. If 'all', a full run (32 timesteps) is used.
+            If 'realtime', range(10, 31, 4) is used.
         pred_years: int, list or None, default=None
             Which years to build models for. If None, the default values from the paper (range(2009, 2016))
             are used.
@@ -93,12 +93,10 @@ class ModelBase:
         elif type(pred_years) is int:
             pred_years = [pred_years]
 
-        if times is None:
+        if times == 'all':
             times = [32]
-            # TODO: doesn't work for convolutions
-            # times = range(10, 31, 4)
-        elif type(times) is int:
-            times = [times]
+        else:
+            times = range(10, 31, 4)
 
         for pred_year in pred_years:
             for run_number in range(1, num_runs + 1):
@@ -146,9 +144,9 @@ class ModelBase:
         train_data, val_data = self.prepare_arrays(images, yields, locations,
                                                    indices, years, predict_year, time)
 
-        # reinitialize the weights, since self.model may be trained multiple
+        # reinitialize the model, since self.model may be trained multiple
         # times in one call to run()
-        self.model.initialize_weights()
+        self.reinitialize_model(time=time)
 
         train_scores, val_scores = self._train(train_data[0], train_data[1],
                                                val_data[0], val_data[1],
@@ -189,7 +187,7 @@ class ModelBase:
                                   model_information['model_bias'])
             model_information['val_pred_gp'] = gp_pred.squeeze(1)
 
-        filename = f'{predict_year}_{run_number}{"_gp" if (self.gp is not None) else ""}.pth.tar'
+        filename = f'{predict_year}_{run_number}_{time}_{"_gp" if (self.gp is not None) else ""}.pth.tar'
         torch.save(model_information, self.savedir / filename)
         return self.analyze_results(model_information['val_real'], model_information['val_pred'],
                                     model_information['val_pred_gp'] if self.gp is not None else None)
@@ -403,3 +401,6 @@ class ModelBase:
             print(f'With GP: RMSE: {rmse_gp}, ME: {me_gp}')
             return rmse, me, rmse_gp, me_gp
         return rmse, me
+
+    def reinitialize_model(self, time=None):
+        raise NotImplementedError
