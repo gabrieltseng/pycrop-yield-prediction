@@ -38,7 +38,7 @@ class ModelBase:
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
             times='all', pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
-            starter_learning_rate=1e-3, l1_weight=1.5, patience=5):
+            starter_learning_rate=1e-3, weight_decay=0, l1_weight=0, patience=5):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
         is trained for each year, with all preceding years used as training values. In addition,
@@ -63,9 +63,10 @@ class ModelBase:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
-        l1_weight: float, default=5
-            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
-            Default is taken from the paper for soybean
+        weight_decay: float, default=1
+            Weight decay (L2 regularization) on the model weights
+        l1_weight: float, default=0
+            In addition to MSE, L1 loss is also used (sometimes). This is the weight to assign to this L1 loss.
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -109,7 +110,8 @@ class ModelBase:
                                                time, run_number,
                                                train_steps, batch_size,
                                                starter_learning_rate,
-                                               l1_weight, patience)
+                                               weight_decay, l1_weight,
+                                               patience)
 
                     years_list.append(pred_year)
                     run_numbers.append(run_number)
@@ -136,7 +138,7 @@ class ModelBase:
         results_df.to_csv(self.savedir / f'{str(datetime.now())}.csv', index=False)
 
     def _run_1_year(self, images, yields, years, locations, indices, predict_year, time, run_number,
-                    train_steps, batch_size, starter_learning_rate, l1_weight, patience):
+                    train_steps, batch_size, starter_learning_rate, weight_decay, l1_weight, patience):
         """
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
@@ -152,7 +154,8 @@ class ModelBase:
                                                val_data[0], val_data[1],
                                                train_steps, batch_size,
                                                starter_learning_rate,
-                                               l1_weight, patience)
+                                               weight_decay, l1_weight,
+                                               patience)
 
         results = self._predict(*train_data, *val_data, batch_size)
 
@@ -193,7 +196,7 @@ class ModelBase:
                                     model_information['val_pred_gp'] if self.gp is not None else None)
 
     def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
-               batch_size, starter_learning_rate, l1_weight, patience):
+               batch_size, starter_learning_rate, weight_decay, l1_weight, patience):
         """Defines the training loop for a model
         """
 
@@ -204,7 +207,8 @@ class ModelBase:
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
         optimizer = torch.optim.Adam([pam for pam in self.model.parameters()],
-                                     lr=starter_learning_rate)
+                                     lr=starter_learning_rate,
+                                     weight_decay=weight_decay)
 
         num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
         print(f'Training for {num_epochs} epochs')

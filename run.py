@@ -118,8 +118,8 @@ class RunTask:
     @staticmethod
     def train_cnn(cleaned_data_path=Path('data/img_output'), dropout=0.25, dense_features=None,
                   savedir=Path('data/models'), times='all', pred_years=None, num_runs=2, train_steps=25000,
-                  batch_size=32, starter_learning_rate=1e-3, l1_weight=1.5, patience=5, use_gp=True,
-                  sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
+                  batch_size=32, starter_learning_rate=1e-3, weight_decay=1, l1_weight=0,
+                  patience=5, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train a CNN model
@@ -150,9 +150,11 @@ class RunTask:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
-        l1_weight: float, default=1.5
-            In addition to MSE, L1 loss is also used. This is the weight to assign to this L1 loss.
-            Default is taken from the paper for soybean
+        weight_decay: float, default=1
+            Weight decay (L2 regularization) on the model weights
+        l1_weight: float, default=0
+            In addition to MSE, L1 loss is also used (sometimes). The default is 0, but a value of 1.5 is used
+            when training the model in batch
         patience: int or None, default=5
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
@@ -184,13 +186,13 @@ class RunTask:
                           savedir=savedir, use_gp=use_gp, sigma=sigma, r_loc=r_loc,
                           r_year=r_year, sigma_e=sigma_e, sigma_b=sigma_b, device=device)
         model.run(histogram_path, times, pred_years, num_runs, train_steps, batch_size,
-                  starter_learning_rate, l1_weight, patience)
+                  starter_learning_rate, weight_decay, l1_weight, patience)
 
     @staticmethod
     def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128,
                   rnn_dropout=0.75, dense_features=None, savedir=Path('data/models'), times='all', pred_years=None,
-                  num_runs=2, train_steps=10000, batch_size=32, starter_learning_rate=1e-3, l1_weight=0, patience=5,
-                  use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
+                  num_runs=2, train_steps=10000, batch_size=32, starter_learning_rate=1e-3, weight_decay=0,
+                  l1_weight=0, patience=5, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train an RNN model
@@ -226,6 +228,8 @@ class RunTask:
         starter_learning_rate: float, default=1e-3
             Starter learning rate. Note that the learning rate is divided by 10 after 2000 and 4000 training
             steps. Default taken from the paper
+        weight_decay: float, default=1
+            Weight decay (L2 regularization) on the model weights
         l1_weight: float, default=0
             L1 loss is not used for the RNN. Setting it to 0 avoids it being computed.
         patience: int or None, default=5
@@ -260,7 +264,7 @@ class RunTask:
                          savedir=savedir, use_gp=use_gp, sigma=sigma, r_loc=r_loc, r_year=r_year,
                          sigma_e=sigma_e, sigma_b=sigma_b, device=device)
         model.run(histogram_path, times, pred_years, num_runs, train_steps, batch_size,
-                  starter_learning_rate, l1_weight, patience)
+                  starter_learning_rate, weight_decay, l1_weight, patience)
 
 
 if __name__ == '__main__':
