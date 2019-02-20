@@ -62,8 +62,11 @@ class ConvModel(ModelBase):
 
         if time is None:
             time = self.time
-        self.model = ConvNet(in_channels=self.in_channels, dropout=self.dropout,
-                             dense_features=self.dense_features, time=time)
+        model = ConvNet(in_channels=self.in_channels, dropout=self.dropout,
+                        dense_features=self.dense_features, time=time)
+        if self.device.type != 'cpu':
+            model = model.cuda()
+        self.model = model
 
 
 class ConvNet(nn.Module):
