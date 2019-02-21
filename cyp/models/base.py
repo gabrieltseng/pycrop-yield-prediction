@@ -9,7 +9,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from .gp import GaussianProcess
-from .loss import regularized_mse
+from .loss import l1_l2_loss
 
 
 class ModelBase:
@@ -234,8 +234,8 @@ class ModelBase:
                 optimizer.zero_grad()
                 pred_y = self.model(train_x)
 
-                loss, running_train_scores = regularized_mse(pred_y, train_y, l1_weight,
-                                                             running_train_scores)
+                loss, running_train_scores = l1_l2_loss(pred_y, train_y, l1_weight,
+                                                        running_train_scores)
                 loss.backward()
                 optimizer.step()
 
@@ -256,8 +256,8 @@ class ModelBase:
                 for val_x, val_y, in tqdm(val_dataloader):
                     val_pred_y = self.model(val_x)
 
-                    val_loss, running_val_scores = regularized_mse(val_pred_y, val_y, l1_weight,
-                                                                   running_val_scores)
+                    val_loss, running_val_scores = l1_l2_loss(val_pred_y, val_y, l1_weight,
+                                                              running_val_scores)
 
                     val_scores['loss'].append(val_loss.item())
 

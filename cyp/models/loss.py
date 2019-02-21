@@ -1,7 +1,7 @@
 import torch.nn.functional as F
 
 
-def regularized_mse(pred, true, l1_weight, scores_dict):
+def l1_l2_loss(pred, true, l1_weight, scores_dict):
     """
     Regularized MSE loss; l2 loss with l1 loss too.
 

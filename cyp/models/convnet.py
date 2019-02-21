@@ -80,7 +80,7 @@ class ConvNet(nn.Module):
         super().__init__()
 
         # values taken from the paper
-        out_channels_list = [in_channels, 128, 256, 256, 512, 512, 1024]
+        out_channels_list = [in_channels, 128, 256, 256, 512, 512, 512]
         stride_list = [None, 1, 2, 1, 2, 1, 2]
 
         # Figure out the size of the final flattened conv layer, which
@@ -92,7 +92,7 @@ class ConvNet(nn.Module):
             time /= 2
 
         if dense_features is None:
-            dense_features = [1024, 1]
+            dense_features = [2048, 1]
         dense_features.insert(0, int(out_channels_list[-1] * time * 4))
 
         assert len(stride_list) == len(out_channels_list), \
@@ -160,7 +160,7 @@ class ConvBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        x = self.batchnorm(self.relu(self.conv(x)))
+        x = self.relu(self.batchnorm(self.conv(x)))
         return self.dropout(x)
 
 
