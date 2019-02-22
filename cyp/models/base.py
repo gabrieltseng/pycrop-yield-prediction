@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, random_split
 
 from pathlib import Path
 import numpy as np
@@ -31,6 +31,10 @@ class ModelBase:
         self.model_bias = model_bias
 
         self.device = device
+
+        # for reproducability
+        torch.manual_seed(42)
+        torch.cuda.manual_seed_all(42)
 
         self.gp = None
         if use_gp:
@@ -143,7 +147,7 @@ class ModelBase:
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
         """
-        train_data, val_data = self.prepare_arrays(images, yields, locations,
+        train_data, test_data = self.prepare_arrays(images, yields, locations,
                                                    indices, years, predict_year, time)
 
         # reinitialize the model, since self.model may be trained multiple
@@ -151,13 +155,12 @@ class ModelBase:
         self.reinitialize_model(time=time)
 
         train_scores, val_scores = self._train(train_data[0], train_data[1],
-                                               val_data[0], val_data[1],
-                                               train_steps, batch_size,
-                                               starter_learning_rate,
-                                               weight_decay, l1_weight,
-                                               patience)
+                                                train_steps, batch_size,
+                                                starter_learning_rate,
+                                                weight_decay, l1_weight,
+                                                patience)
 
-        results = self._predict(*train_data, *val_data, batch_size)
+        results = self._predict(*train_data, *test_data, batch_size)
 
         model_information = {
             'state_dict': self.model.state_dict(),
@@ -180,28 +183,34 @@ class ModelBase:
         if self.gp is not None:
             print("Running Gaussian Process!")
             gp_pred = self.gp.run(model_information['train_feat'],
-                                  model_information['val_feat'],
+                                  model_information['test_feat'],
                                   model_information['train_loc'],
-                                  model_information['val_loc'],
+                                  model_information['test_loc'],
                                   model_information['train_years'],
-                                  model_information['val_years'],
+                                  model_information['test_years'],
                                   model_information['train_real'],
                                   model_information['model_weight'],
                                   model_information['model_bias'])
-            model_information['val_pred_gp'] = gp_pred.squeeze(1)
+            model_information['test_pred_gp'] = gp_pred.squeeze(1)
 
         filename = f'{predict_year}_{run_number}_{time}_{"_gp" if (self.gp is not None) else ""}.pth.tar'
         torch.save(model_information, self.savedir / filename)
-        return self.analyze_results(model_information['val_real'], model_information['val_pred'],
-                                    model_information['val_pred_gp'] if self.gp is not None else None)
+        return self.analyze_results(model_information['test_real'], model_information['test_pred'],
+                                    model_information['test_pred_gp'] if self.gp is not None else None)
 
-    def _train(self, train_images, train_yields, val_images, val_yields, train_steps,
+    def _train(self, train_images, train_yields, train_steps,
                batch_size, starter_learning_rate, weight_decay, l1_weight, patience):
         """Defines the training loop for a model
         """
 
-        train_dataset = TensorDataset(train_images, train_yields)
-        val_dataset = TensorDataset(val_images, val_yields)
+        # split the training dataset into a training and validation set
+        total_size = train_images.shape[0]
+        # "Learning rates and stopping criteria are tuned on a held-out
+        # validation set (10%)."
+        val_size = total_size // 10
+        train_size = total_size - val_size
+        train_dataset, val_dataset = random_split(TensorDataset(train_images, train_yields),
+                                                  (train_size, val_size))
 
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
@@ -257,7 +266,7 @@ class ModelBase:
                     val_pred_y = self.model(val_x)
 
                     val_loss, running_val_scores = l1_l2_loss(val_pred_y, val_y, l1_weight,
-                                                              running_val_scores)
+                                                               running_val_scores)
 
                     val_scores['loss'].append(val_loss.item())
 
@@ -265,7 +274,7 @@ class ModelBase:
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
             print('TRAINING: {}'.format(', '.join(train_output_strings)))
-            print('VALIDATION: {}'.format(', '.join(val_output_strings)))
+            print('TEST: {}'.format(', '.join(val_output_strings)))
 
             epoch_val_loss = np.array(running_val_scores['loss']).mean()
 
@@ -288,18 +297,18 @@ class ModelBase:
         return train_scores, val_scores
 
     def _predict(self, train_images, train_yields, train_locations, train_indices,
-                 train_years, val_images, val_yields, val_locations, val_indices,
-                 val_years, batch_size):
+                 train_years, test_images, test_yields, test_locations, test_indices,
+                 test_years, batch_size):
         """
         Predict on the training and validation data. Optionally, return the last
         feature vector of the model.
         """
         train_dataset = TensorDataset(train_images, train_yields, train_locations, train_indices,
                                       train_years)
-        val_dataset = TensorDataset(val_images, val_yields, val_locations, val_indices, val_years)
+        test_dataset = TensorDataset(test_images, test_yields, test_locations, test_indices, test_years)
 
         train_dataloader = DataLoader(train_dataset, batch_size=1)
-        val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
         results = defaultdict(list)
 
@@ -321,25 +330,25 @@ class ModelBase:
                 results['train_indices'].append(train_idx.numpy())
                 results['train_years'].extend(train_year.tolist())
 
-            for val_im, val_yield, val_loc, val_idx, val_year in tqdm(val_dataloader):
-                model_output = self.model(val_im,
+            for test_im, test_yield, test_loc, test_idx, test_year in tqdm(test_dataloader):
+                model_output = self.model(test_im,
                                           return_last_dense=True if (self.gp is not None) else False)
                 if self.gp is not None:
                     pred, feat = model_output
                     if feat.device != 'cpu':
                         feat = feat.cpu()
-                    results['val_feat'].append(feat.numpy())
+                    results['test_feat'].append(feat.numpy())
                 else:
                     pred = model_output
-                results['val_pred'].extend(pred.squeeze(1).tolist())
-                results['val_real'].extend(val_yield.squeeze(1).tolist())
-                results['val_loc'].append(val_loc.numpy())
-                results['val_indices'].append(val_idx.numpy())
-                results['val_years'].extend(val_year.tolist())
+                results['test_pred'].extend(pred.squeeze(1).tolist())
+                results['test_real'].extend(test_yield.squeeze(1).tolist())
+                results['test_loc'].append(test_loc.numpy())
+                results['test_indices'].append(test_idx.numpy())
+                results['test_years'].extend(test_year.tolist())
 
         for key in results:
-            if key in ['train_feat', 'val_feat', 'train_loc',
-                       'train_indices', 'val_loc', 'val_indices']:
+            if key in ['train_feat', 'test_feat', 'train_loc',
+                       'test_loc', 'train_indices', 'test_indices']:
                 results[key] = np.concatenate(results[key], axis=0)
             else:
                 results[key] = np.array(results[key])
@@ -354,11 +363,11 @@ class ModelBase:
         - removes excess months, if monthly predictions are being made
         """
         train_idx = np.nonzero(years < predict_year)[0]
-        val_idx = np.nonzero(years == predict_year)[0]
+        test_idx = np.nonzero(years == predict_year)[0]
 
-        train_images, val_images = self._normalize(images[train_idx], images[val_idx])
+        train_images, test_images = self._normalize(images[train_idx], images[test_idx])
 
-        print(f'Train set size: {train_idx.shape[0]}, Val set size: {val_idx.shape[0]}')
+        print(f'Train set size: {train_idx.shape[0]}, Val set size: {test_idx.shape[0]}')
 
         train_images = torch.as_tensor(train_images[:, :, :time, :], device=self.device).float()
         train_yields = torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1)
@@ -366,14 +375,14 @@ class ModelBase:
         train_indices = torch.as_tensor(indices[train_idx])
         train_years = torch.as_tensor(years[train_idx])
 
-        val_images = torch.as_tensor(val_images[:, :, :time, :], device=self.device).float()
-        val_yields = torch.as_tensor(yields[val_idx], device=self.device).float().unsqueeze(1)
-        val_locations = torch.as_tensor(locations[val_idx])
-        val_indices = torch.as_tensor(indices[val_idx])
-        val_years = torch.as_tensor(years[val_idx])
+        test_images = torch.as_tensor(test_images[:, :, :time, :], device=self.device).float()
+        test_yields = torch.as_tensor(yields[test_idx], device=self.device).float().unsqueeze(1)
+        test_locations = torch.as_tensor(locations[test_idx])
+        test_indices = torch.as_tensor(indices[test_idx])
+        test_years = torch.as_tensor(years[test_idx])
 
         return ((train_images, train_yields, train_locations, train_indices, train_years),
-                (val_images, val_yields, val_locations, val_indices, val_years))
+                (test_images, test_yields, test_locations, test_indices, test_years))
 
     @staticmethod
     def _normalize(train_images, val_images):
