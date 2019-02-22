@@ -148,7 +148,7 @@ class ModelBase:
         To be called by run().
         """
         train_data, test_data = self.prepare_arrays(images, yields, locations,
-                                                   indices, years, predict_year, time)
+                                                    indices, years, predict_year, time)
 
         # reinitialize the model, since self.model may be trained multiple
         # times in one call to run()
@@ -209,6 +209,8 @@ class ModelBase:
         # validation set (10%)."
         val_size = total_size // 10
         train_size = total_size - val_size
+        print(f'After split, training on {train_size} examples, '
+              f'validating on {val_size} examples')
         train_dataset, val_dataset = random_split(TensorDataset(train_images, train_yields),
                                                   (train_size, val_size))
 
@@ -367,7 +369,7 @@ class ModelBase:
 
         train_images, test_images = self._normalize(images[train_idx], images[test_idx])
 
-        print(f'Train set size: {train_idx.shape[0]}, Val set size: {test_idx.shape[0]}')
+        print(f'Train set size: {train_idx.shape[0]}, Test set size: {test_idx.shape[0]}')
 
         train_images = torch.as_tensor(train_images[:, :, :time, :], device=self.device).float()
         train_yields = torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1)
