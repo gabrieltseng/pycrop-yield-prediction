@@ -13,13 +13,6 @@ class GaussianProcess:
         self.sigma_e = sigma_e
         self.sigma_b = sigma_b
 
-    @staticmethod
-    def _normalize(x):
-        x_mean = np.mean(x, axis=0, keepdims=True)
-        x_scale = np.ptp(x, axis=0, keepdims=True)
-
-        return (x - x_mean) / x_scale
-
     def run(self, feat_train, feat_test, loc_train, loc_test, year_train, year_test,
             train_yield, model_weights, model_bias):
 
@@ -33,8 +26,8 @@ class GaussianProcess:
         n_train = feat_train.shape[0]
         n_test = feat_test.shape[0]
 
-        locations = self._normalize(np.concatenate((loc_train, loc_test), axis=0))
-        years = self._normalize(np.concatenate((year_train, year_test), axis=0))
+        locations = np.concatenate((loc_train, loc_test), axis=0)
+        years = np.concatenate((year_train, year_test), axis=0)
         # to calculate the se_kernel, a dim=2 array must be passed
         years = np.expand_dims(years, axis=1)
 

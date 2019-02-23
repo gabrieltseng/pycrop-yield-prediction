@@ -16,8 +16,8 @@ class ModelBase:
     """
     Base class for all models
     """
-    def __init__(self, model, model_weight, model_bias, model_type, savedir, use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
+    def __init__(self, model, model_weight, model_bias, model_type, savedir,
+                 use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                  device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         self.savedir = savedir / model_type
         self.savedir.mkdir(parents=True, exist_ok=True)
@@ -148,7 +148,7 @@ class ModelBase:
         # times in one call to run()
         self.reinitialize_model(time=time)
 
-        train_scores, val_scores = self._train(train_data[0], train_data[1],
+        train_scores, val_scores = self._train(*train_data,
                                                train_steps, batch_size,
                                                starter_learning_rate,
                                                weight_decay, l1_weight,
@@ -192,8 +192,8 @@ class ModelBase:
         return self.analyze_results(model_information['test_real'], model_information['test_pred'],
                                     model_information['test_pred_gp'] if self.gp is not None else None)
 
-    def _train(self, train_images, train_yields, train_steps,
-               batch_size, starter_learning_rate, weight_decay, l1_weight, patience):
+    def _train(self, train_images, train_yields, train_locations, train_indices, train_years,
+               train_steps, batch_size, starter_learning_rate, weight_decay, l1_weight, patience):
         """Defines the training loop for a model
         """
 
@@ -205,7 +205,9 @@ class ModelBase:
         train_size = total_size - val_size
         print(f'After split, training on {train_size} examples, '
               f'validating on {val_size} examples')
-        train_dataset, val_dataset = random_split(TensorDataset(train_images, train_yields),
+        train_dataset, val_dataset = random_split(TensorDataset(train_images, train_yields,
+                                                                train_locations, train_indices,
+                                                                train_years),
                                                   (train_size, val_size))
 
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -235,9 +237,9 @@ class ModelBase:
             # information
             running_train_scores = defaultdict(list)
 
-            for train_x, train_y in tqdm(train_dataloader):
+            for train_x, train_y, train_locations, train_indices, train_years in tqdm(train_dataloader):
                 optimizer.zero_grad()
-                pred_y = self.model(train_x)
+                pred_y = self.model(train_x, years=train_years, locations=train_locations)
 
                 loss, running_train_scores = l1_l2_loss(pred_y, train_y, l1_weight,
                                                         running_train_scores)
@@ -259,8 +261,8 @@ class ModelBase:
             running_val_scores = defaultdict(list)
             self.model.eval()
             with torch.no_grad():
-                for val_x, val_y, in tqdm(val_dataloader):
-                    val_pred_y = self.model(val_x)
+                for val_x, val_y, val_locations, val_indices, val_years in tqdm(val_dataloader):
+                    val_pred_y = self.model(val_x, years=val_years, locations=val_locations)
 
                     val_loss, running_val_scores = l1_l2_loss(val_pred_y, val_y, l1_weight,
                                                               running_val_scores)
@@ -317,7 +319,7 @@ class ModelBase:
         self.model.eval()
         with torch.no_grad():
             for train_im, train_yield, train_loc, train_idx, train_year in tqdm(train_dataloader):
-                model_output = self.model(train_im,
+                model_output = self.model(train_im, years=train_year, locations=train_loc,
                                           return_last_dense=True if (self.gp is not None) else False)
                 if self.gp is not None:
                     pred, feat = model_output
@@ -326,6 +328,10 @@ class ModelBase:
                     results['train_feat'].append(feat.numpy())
                 else:
                     pred = model_output
+
+                if train_loc.device != 'cpu':
+                    train_loc, train_year = train_loc.cpu(), train_year.cpu()
+
                 results['train_pred'].extend(pred.squeeze(1).tolist())
                 results['train_real'].extend(train_yield.squeeze(1).tolist())
                 results['train_loc'].append(train_loc.numpy())
@@ -333,7 +339,7 @@ class ModelBase:
                 results['train_years'].extend(train_year.tolist())
 
             for test_im, test_yield, test_loc, test_idx, test_year in tqdm(test_dataloader):
-                model_output = self.model(test_im,
+                model_output = self.model(test_im, years=test_year, locations=test_loc,
                                           return_last_dense=True if (self.gp is not None) else False)
                 if self.gp is not None:
                     pred, feat = model_output
@@ -342,6 +348,9 @@ class ModelBase:
                     results['test_feat'].append(feat.numpy())
                 else:
                     pred = model_output
+
+                if test_loc.device != 'cpu':
+                    test_loc, test_year = test_loc.cpu(), test_year.cpu()
                 results['test_pred'].extend(pred.squeeze(1).tolist())
                 results['test_real'].extend(test_yield.squeeze(1).tolist())
                 results['test_loc'].append(test_loc.numpy())
@@ -367,39 +376,38 @@ class ModelBase:
         train_idx = np.nonzero(years < predict_year)[0]
         test_idx = np.nonzero(years == predict_year)[0]
 
-        train_images, test_images = self._normalize(images[train_idx], images[test_idx])
+        train_images, test_images = images[train_idx], images[test_idx]
+
+        # normalize images
+        mean = np.mean(train_images, axis=(0, 2, 3))
+        train_images = (train_images.transpose(0, 2, 3, 1) - mean).transpose(0, 3, 1, 2)
+        test_images = (test_images.transpose(0, 2, 3, 1) - mean).transpose(0, 3, 1, 2)
 
         print(f'Train set size: {train_idx.shape[0]}, Test set size: {test_idx.shape[0]}')
 
+        locations, years = self._normalize(locations), self._normalize(years)
+
         train_images = torch.as_tensor(train_images[:, :, :time, :], device=self.device).float()
         train_yields = torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1)
-        train_locations = torch.as_tensor(locations[train_idx])
+        train_locations = torch.as_tensor(locations[train_idx], device=self.device).float()
         train_indices = torch.as_tensor(indices[train_idx])
-        train_years = torch.as_tensor(years[train_idx])
+        train_years = torch.as_tensor(years[train_idx], device=self.device).float()
 
         test_images = torch.as_tensor(test_images[:, :, :time, :], device=self.device).float()
         test_yields = torch.as_tensor(yields[test_idx], device=self.device).float().unsqueeze(1)
-        test_locations = torch.as_tensor(locations[test_idx])
+        test_locations = torch.as_tensor(locations[test_idx], device=self.device).float()
         test_indices = torch.as_tensor(indices[test_idx])
-        test_years = torch.as_tensor(years[test_idx])
+        test_years = torch.as_tensor(years[test_idx], device=self.device).float()
 
         return ((train_images, train_yields, train_locations, train_indices, train_years),
                 (test_images, test_yields, test_locations, test_indices, test_years))
 
     @staticmethod
-    def _normalize(train_images, val_images):
-        """
-        Find the mean values of the bands in the train images. Use these values
-        to normalize both the training and validation images.
+    def _normalize(x):
+        x_mean = np.mean(x, axis=0, keepdims=True)
+        x_scale = np.ptp(x, axis=0, keepdims=True)
 
-        A little awkward, since transpositions are necessary to make array broadcasting work
-        """
-        mean = np.mean(train_images, axis=(0, 2, 3))
-
-        train_images = (train_images.transpose(0, 2, 3, 1) - mean).transpose(0, 3, 1, 2)
-        val_images = (val_images.transpose(0, 2, 3, 1) - mean).transpose(0, 3, 1, 2)
-
-        return train_images, val_images
+        return (x - x_mean) / x_scale
 
     @staticmethod
     def analyze_results(true, pred, pred_gp):
