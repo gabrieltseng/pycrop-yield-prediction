@@ -155,10 +155,10 @@ class ModelBase:
         self.reinitialize_model(time=time)
 
         train_scores, val_scores = self._train(train_data[0], train_data[1],
-                                                train_steps, batch_size,
-                                                starter_learning_rate,
-                                                weight_decay, l1_weight,
-                                                patience)
+                                               train_steps, batch_size,
+                                               starter_learning_rate,
+                                               weight_decay, l1_weight,
+                                               patience)
 
         results = self._predict(*train_data, *test_data, batch_size)
 
@@ -171,12 +171,12 @@ class ModelBase:
             model_information[key] = results[key]
 
         # finally, get the relevant weights for the Gaussian Process
+        model_weight = self.model.state_dict()[self.model_weight]
+        model_bias = self.model.state_dict()[self.model_bias]
+
         if self.model.state_dict()[self.model_weight].device != 'cpu':
-            model_weight = self.model.state_dict()[self.model_weight].cpu()
-            model_bias = self.model.state_dict()[self.model_bias].cpu()
-        else:
-            model_weight = self.model.state_dict()[self.model_weight]
-            model_bias = self.model.state_dict()[self.model_bias]
+            model_weight, model_bias = model_weight.cpu(), model_bias.cpu()
+
         model_information['model_weight'] = model_weight.numpy()
         model_information['model_bias'] = model_bias.numpy()
 
@@ -253,7 +253,8 @@ class ModelBase:
                 train_scores['loss'].append(loss.item())
 
                 step_number += 1
-                if (step_number == 4000) or (step_number == 20000):
+
+                if step_number in [4000, 20000]:
                     for param_group in optimizer.param_groups:
                         param_group['lr'] /= 10
 
@@ -268,15 +269,16 @@ class ModelBase:
                     val_pred_y = self.model(val_x)
 
                     val_loss, running_val_scores = l1_l2_loss(val_pred_y, val_y, l1_weight,
-                                                               running_val_scores)
+                                                              running_val_scores)
 
                     val_scores['loss'].append(val_loss.item())
 
             val_output_strings = []
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
+
             print('TRAINING: {}'.format(', '.join(train_output_strings)))
-            print('TEST: {}'.format(', '.join(val_output_strings)))
+            print('VALIDATION: {}'.format(', '.join(val_output_strings)))
 
             epoch_val_loss = np.array(running_val_scores['loss']).mean()
 
@@ -309,7 +311,7 @@ class ModelBase:
                                       train_years)
         test_dataset = TensorDataset(test_images, test_yields, test_locations, test_indices, test_years)
 
-        train_dataloader = DataLoader(train_dataset, batch_size=1)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
         test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
         results = defaultdict(list)
