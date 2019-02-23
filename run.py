@@ -103,7 +103,7 @@ class RunTask:
         num_bins: int, default=32
             If generate=='histogram', the number of bins to generate in the histogram.
         max_bin_val: int, default=4999
-            The maximum value of the bins. The default is taken from the original repository;
+            The maximum value of the bins. The default is taken from the original paper;
             note that the maximum pixel values from the MODIS datsets range from 16000 to
             18000 depending on the band
         """
@@ -116,10 +116,10 @@ class RunTask:
                          channels_first=True)
 
     @staticmethod
-    def train_cnn(cleaned_data_path=Path('data/img_output'), dropout=0.25, dense_features=None,
+    def train_cnn(cleaned_data_path=Path('data/img_output'), dropout=0.5, dense_features=None,
                   savedir=Path('data/models'), times='all', pred_years=None, num_runs=2, train_steps=25000,
                   batch_size=32, starter_learning_rate=1e-3, weight_decay=1, l1_weight=0,
-                  patience=5, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
+                  patience=10, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train a CNN model
@@ -128,8 +128,8 @@ class RunTask:
         ----------
         cleaned_data_path: str, default='data/img_output'
             Path to which histogram has been saved
-        dropout: float, default=0.25
-            Default taken from the original repository
+        dropout: float, default=0.5
+            Default taken from the original paper
         dense_features: list, or None, default=None.
             output feature size of the Linear layers. If None, default values will be taken from the paper.
             The length of the list defines how many linear layers are used.
@@ -155,7 +155,7 @@ class RunTask:
         l1_weight: float, default=0
             In addition to MSE, L1 loss is also used (sometimes). The default is 0, but a value of 1.5 is used
             when training the model in batch
-        patience: int or None, default=5
+        patience: int or None, default=10
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
 
@@ -192,7 +192,7 @@ class RunTask:
     def train_rnn(cleaned_data_path='data/img_output', num_bins=32, hidden_size=128,
                   rnn_dropout=0.75, dense_features=None, savedir=Path('data/models'), times='all', pred_years=None,
                   num_runs=2, train_steps=10000, batch_size=32, starter_learning_rate=1e-3, weight_decay=0,
-                  l1_weight=0, patience=5, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
+                  l1_weight=0, patience=10, use_gp=True, sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.32, sigma_b=0.01,
                   device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         """
         Train an RNN model
@@ -204,7 +204,7 @@ class RunTask:
         num_bins: int, default=32
             Number of bins in the generated histogram
         hidden_size: int, default=128
-            The size of the hidden state. Default taken from the original repository
+            The size of the hidden state. Default taken from the original paper
         rnn_dropout: float, default=0.75
             Default taken from the original paper. Note that this dropout is applied to the
             hidden state after each timestep, not after each layer (since there is only one layer)
@@ -232,7 +232,7 @@ class RunTask:
             Weight decay (L2 regularization) on the model weights
         l1_weight: float, default=0
             L1 loss is not used for the RNN. Setting it to 0 avoids it being computed.
-        patience: int or None, default=5
+        patience: int or None, default=10
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
 

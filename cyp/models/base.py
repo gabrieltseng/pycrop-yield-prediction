@@ -42,7 +42,7 @@ class ModelBase:
 
     def run(self, path_to_histogram=Path('data/img_output/histogram_all_full.npz'),
             times='all', pred_years=None, num_runs=2, train_steps=25000, batch_size=32,
-            starter_learning_rate=1e-3, weight_decay=0, l1_weight=0, patience=5):
+            starter_learning_rate=1e-3, weight_decay=0, l1_weight=0, patience=10):
         """
         Train the models. Note that multiple models are trained: as per the paper, a model
         is trained for each year, with all preceding years used as training values. In addition,
@@ -71,7 +71,7 @@ class ModelBase:
             Weight decay (L2 regularization) on the model weights
         l1_weight: float, default=0
             In addition to MSE, L1 loss is also used (sometimes). This is the weight to assign to this L1 loss.
-        patience: int or None, default=5
+        patience: int or None, default=10
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
         """
@@ -84,14 +84,9 @@ class ModelBase:
             indices = hist['output_index']
 
         # to collect results
-        years_list = []
-        run_numbers = []
-        rmse_list = []
-        me_list = []
-        times_list = []  # which subset of times the model will be trained on
+        years_list, run_numbers, rmse_list, me_list, times_list = [], [], [], [], []
         if self.gp is not None:
-            rmse_gp_list = []
-            me_gp_list = []
+            rmse_gp_list, me_gp_list = [], []
 
         if pred_years is None:
             pred_years = range(2009, 2016)
@@ -129,7 +124,6 @@ class ModelBase:
                         rmse, me = results
                     rmse_list.append(rmse)
                     me_list.append(me)
-
                 print('-----------')
 
         # save results to a csv file
@@ -155,10 +149,10 @@ class ModelBase:
         self.reinitialize_model(time=time)
 
         train_scores, val_scores = self._train(train_data[0], train_data[1],
-                                                train_steps, batch_size,
-                                                starter_learning_rate,
-                                                weight_decay, l1_weight,
-                                                patience)
+                                               train_steps, batch_size,
+                                               starter_learning_rate,
+                                               weight_decay, l1_weight,
+                                               patience)
 
         results = self._predict(*train_data, *test_data, batch_size)
 
@@ -171,12 +165,12 @@ class ModelBase:
             model_information[key] = results[key]
 
         # finally, get the relevant weights for the Gaussian Process
+        model_weight = self.model.state_dict()[self.model_weight]
+        model_bias = self.model.state_dict()[self.model_bias]
+
         if self.model.state_dict()[self.model_weight].device != 'cpu':
-            model_weight = self.model.state_dict()[self.model_weight].cpu()
-            model_bias = self.model.state_dict()[self.model_bias].cpu()
-        else:
-            model_weight = self.model.state_dict()[self.model_weight]
-            model_bias = self.model.state_dict()[self.model_bias]
+            model_weight, model_bias = model_weight.cpu(), model_bias.cpu()
+
         model_information['model_weight'] = model_weight.numpy()
         model_information['model_bias'] = model_bias.numpy()
 
@@ -223,11 +217,11 @@ class ModelBase:
 
         num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
         print(f'Training for {num_epochs} epochs')
-        step_number = 0
 
         train_scores = defaultdict(list)
         val_scores = defaultdict(list)
 
+        step_number = 0
         min_loss = np.inf
         best_state = self.model.state_dict()
 
@@ -253,7 +247,8 @@ class ModelBase:
                 train_scores['loss'].append(loss.item())
 
                 step_number += 1
-                if (step_number == 4000) or (step_number == 20000):
+
+                if step_number in [4000, 20000]:
                     for param_group in optimizer.param_groups:
                         param_group['lr'] /= 10
 
@@ -268,15 +263,16 @@ class ModelBase:
                     val_pred_y = self.model(val_x)
 
                     val_loss, running_val_scores = l1_l2_loss(val_pred_y, val_y, l1_weight,
-                                                               running_val_scores)
+                                                              running_val_scores)
 
                     val_scores['loss'].append(val_loss.item())
 
             val_output_strings = []
             for key, val in running_val_scores.items():
                 val_output_strings.append('{}: {}'.format(key, round(np.array(val).mean(), 5)))
+
             print('TRAINING: {}'.format(', '.join(train_output_strings)))
-            print('TEST: {}'.format(', '.join(val_output_strings)))
+            print('VALIDATION: {}'.format(', '.join(val_output_strings)))
 
             epoch_val_loss = np.array(running_val_scores['loss']).mean()
 
@@ -305,11 +301,15 @@ class ModelBase:
         Predict on the training and validation data. Optionally, return the last
         feature vector of the model.
         """
-        train_dataset = TensorDataset(train_images, train_yields, train_locations, train_indices,
+        train_dataset = TensorDataset(train_images, train_yields,
+                                      train_locations, train_indices,
                                       train_years)
-        test_dataset = TensorDataset(test_images, test_yields, test_locations, test_indices, test_years)
 
-        train_dataloader = DataLoader(train_dataset, batch_size=1)
+        test_dataset = TensorDataset(test_images, test_yields,
+                                     test_locations, test_indices,
+                                     test_years)
+
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
         test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
         results = defaultdict(list)
