@@ -40,6 +40,28 @@ in bushel per acre:
 
 <img src="diagrams/2014_cnn_errors.png" alt="CNN errors" height="400px"/>
 
+#### Adding time and location data to the neural network
+
+The Gaussian Process leverages information about each data point's location and time which the model does
+not otherwise have access to. Providing this information (i.e. the year being analyzed, and the image's latitude 
+and longitude) to the neural network too leads to an improvement in results.
+
+As before, these results were generated using early stopping, with a patience of 10. They can be replicated
+by adding the `--add_year_loc` flag when training the models; all other arguments are the default arguments.
+
+In this case, because the Gaussian Process doesn't have access to additional information compared to the neural network,
+the neural network alone is competitive with the neural network and Gaussian Process combination. This has the advantage
+of not requiring feature vectors for the entire dataset to be loaded into memory.
+
+| Year | LSTM    | LSTM + GP | CNN    | CNN + GP |
+|:----:|:-------:|:---------:|:------:|:--------:|
+|2009  |**5.00** |5.28       |        |          |
+|2010  |6.08     |6.54       |        |          |
+|2011  |7.61     |6.60       |        |          |
+|2012  |7.99     |6.41       |        |          |
+|2013  |**5.25** |5.65       |        |          |
+|2014  |5.02     |**4.53**   |        |          |
+|2015  |5.23     |**5.11**   |        |          |
 
 ## Pipeline
 

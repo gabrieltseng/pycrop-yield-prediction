@@ -76,7 +76,9 @@ class RNNet(nn.Module):
 
         self.add_year_loc = add_year_loc
         # add lat, lon, year
-        if self.add_year_loc: dense_features[0] += 3
+        if self.add_year_loc:
+            dense_features[0] += 3
+            self.tanh = nn.Tanh()
 
         self.dropout = nn.Dropout(rnn_dropout)
         self.rnn = nn.LSTM(input_size=in_channels * num_bins,
@@ -142,6 +144,9 @@ class RNNet(nn.Module):
 
         for layer_number, dense_layer in enumerate(self.dense_layers):
             x = dense_layer(x)
+            if self.add_year_loc and (layer_number <= len(self.dense_layers) - 2):
+                # add a nonlinearity to all outputs except the last one
+                x = self.tanh(x)
             if return_last_dense and (layer_number == len(self.dense_layers) - 2):
                 output = x
         if return_last_dense:

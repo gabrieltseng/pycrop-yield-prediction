@@ -103,7 +103,9 @@ class ConvNet(nn.Module):
 
         # add lat, lon, year
         self.add_year_loc = add_year_loc
-        if self.add_year_loc: dense_features[0] += 3
+        if self.add_year_loc:
+            dense_features[0] += 3
+            self.tanh = nn.Tanh()
 
         self.convblocks = nn.ModuleList([
             ConvBlock(in_channels=in_out_channels_list[i-1],
@@ -148,6 +150,9 @@ class ConvNet(nn.Module):
 
         for layer_number, dense_layer in enumerate(self.dense_layers):
             x = dense_layer(x)
+            if self.add_year_loc and (layer_number <= len(self.dense_layers) - 2):
+                # add a nonlinearity to all outputs except the last one
+                x = self.tanh(x)
             if return_last_dense and (layer_number == len(self.dense_layers) - 2):
                 output = x
         if return_last_dense:
