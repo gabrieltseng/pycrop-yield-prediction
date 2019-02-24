@@ -187,7 +187,7 @@ class ModelBase:
                                   model_information['model_bias'])
             model_information['test_pred_gp'] = gp_pred.squeeze(1)
 
-        filename = f'{predict_year}_{run_number}_{time}_{"_gp" if (self.gp is not None) else ""}.pth.tar'
+        filename = f'{predict_year}_{run_number}_{time}_{"gp" if (self.gp is not None) else ""}.pth.tar'
         torch.save(model_information, self.savedir / filename)
         return self.analyze_results(model_information['test_real'], model_information['test_pred'],
                                     model_information['test_pred_gp'] if self.gp is not None else None)
