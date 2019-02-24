@@ -22,20 +22,20 @@ def plot_county_errors(model, svg_file=Path('data/counties.svg'), save_colorbar=
         Whether to save a colorbar too.
     """
 
-    model_sd = torch.load(model)
+    model_sd = torch.load(model, map_location='cpu')
 
     model_dir = model.parents[0]
 
-    real_values = model_sd['val_real']
-    pred_values = model_sd['val_pred']
+    real_values = model_sd['test_real']
+    pred_values = model_sd['test_pred']
 
     gp = True
     try:
-        gp_values = model_sd['val_pred_gp']
+        gp_values = model_sd['test_pred_gp']
     except KeyError:
         gp = False
 
-    indices = model_sd['val_indices']
+    indices = model_sd['test_indices']
 
     pred_err = pred_values - real_values
     pred_dict = {}
