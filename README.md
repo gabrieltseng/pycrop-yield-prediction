@@ -73,15 +73,15 @@ python run.py process
 Takes the exported and downloaded data, and splits the data by year. In addition, the temperature and reflection `tif` 
 files are merged, and the mask is applied so only farmland is considered. Files are saved as `.npy` files.
 
-The size of the processed files is 
+The size of the processed files is **97 GB**. Running with the flag `delete_when_done=True` will 
+delete the `.tif` files as they get processed.
 
 #### Feature Engineering
 
 ```bash
 python run.py engineer
 ``` 
-Take the processed `.npy` files and generate histogams which can be input into the models. The total size of the `.npy`
-files is **97 GB**. Running with the flag `delete_when_done=True` will delete the `.tif` files as they get processed. 
+Take the processed `.npy` files and generate histogams which can be input into the models.
 
 #### Model training
 
