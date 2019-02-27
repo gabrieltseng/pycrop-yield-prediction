@@ -49,6 +49,9 @@ class ConvModel(ModelBase):
 
         if dense_features is None:
             num_dense_layers = 2
+            # if add_year_loc, we add an additional dense layer
+            # to handle the new information being passed to the model
+            if add_year_loc: num_dense_layers += 1
         else:
             num_dense_layers = len(dense_features)
         model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
@@ -68,7 +71,8 @@ class ConvModel(ModelBase):
         if time is None:
             time = self.time
         model = ConvNet(in_channels=self.in_channels, dropout=self.dropout,
-                        dense_features=self.dense_features, time=time)
+                        dense_features=self.dense_features, time=time,
+                        add_year_loc=self.add_year_loc)
         if self.device.type != 'cpu':
             model = model.cuda()
         self.model = model
@@ -104,8 +108,14 @@ class ConvNet(nn.Module):
         # add lat, lon, year
         self.add_year_loc = add_year_loc
         if self.add_year_loc:
+            # add an additional dense layer, to ensure the model
+            # can learn nonlinear relations with the image vector
+            # and the year_loc elements
+            dense_features.insert(2, 1024)
+
+            # add 3 elements to the hidden size, so the first dense layer
+            # expects an input which includes the 3 additional elements
             dense_features[0] += 3
-            self.tanh = nn.Tanh()
 
         self.convblocks = nn.ModuleList([
             ConvBlock(in_channels=in_out_channels_list[i-1],
@@ -150,9 +160,6 @@ class ConvNet(nn.Module):
 
         for layer_number, dense_layer in enumerate(self.dense_layers):
             x = dense_layer(x)
-            if self.add_year_loc and (layer_number <= len(self.dense_layers) - 2):
-                # add a nonlinearity to all outputs except the last one
-                x = self.tanh(x)
             if return_last_dense and (layer_number == len(self.dense_layers) - 2):
                 output = x
         if return_last_dense:

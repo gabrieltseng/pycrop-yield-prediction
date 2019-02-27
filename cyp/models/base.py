@@ -7,6 +7,7 @@ import pandas as pd
 from collections import defaultdict
 from tqdm import tqdm
 from datetime import datetime
+from itertools import count
 
 from .gp import GaussianProcess
 from .loss import l1_l2_loss
@@ -60,8 +61,9 @@ class ModelBase:
             are used.
         num_runs: int, default=2
             The number of runs to do per year. Default taken from the paper
-        train_steps: int, default=25000
-            The number of steps for which to train the model. Default taken from the paper.
+        train_steps: int or None, default=25000
+            The number of steps for which to train the model. Default taken from the paper. If None, no limit
+            is set on the number of training steps. If this the case, patience cannot also be None
         batch_size: int, default=32
             Batch size when training. Default taken from the paper
         starter_learning_rate: float, default=1e-3
@@ -75,6 +77,9 @@ class ModelBase:
             The number of epochs to wait without improvement in the validation loss before terminating training.
             Note that the original repository doesn't use early stopping.
         """
+
+        assert ((train_steps is not None) or (patience is not None)), \
+            "If train_steps and patience are both None, the model will never stop training!"
 
         with np.load(path_to_histogram) as hist:
             images = hist['output_image']
@@ -217,8 +222,13 @@ class ModelBase:
                                      lr=starter_learning_rate,
                                      weight_decay=weight_decay)
 
-        num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
-        print(f'Training for {num_epochs} epochs')
+        if train_steps is not None:
+            num_epochs = int(train_steps / (train_images.shape[0] / batch_size))
+            print(f'Training for {num_epochs} epochs')
+            epochs = range(num_epochs)
+        else:
+            print("Training until early stopping")
+            epochs = count(start=0, step=1)
 
         train_scores = defaultdict(list)
         val_scores = defaultdict(list)
@@ -230,7 +240,8 @@ class ModelBase:
         if patience is not None:
             epochs_without_improvement = 0
 
-        for epoch in range(num_epochs):
+        for epoch in epochs:
+            print(f'Epoch {epoch + 1}')
             self.model.train()
 
             # running train and val scores are only for printing out

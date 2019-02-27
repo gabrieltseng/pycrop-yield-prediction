@@ -45,8 +45,12 @@ class RNNModel(ModelBase):
 
         if dense_features is None:
             num_dense_layers = 2
+            # if add_year_loc, we add an additional dense layer
+            # to handle the new information being passed to the model
+            if add_year_loc: num_dense_layers += 1
         else:
             num_dense_layers = len(dense_features)
+
         model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
         model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
 
@@ -77,8 +81,14 @@ class RNNet(nn.Module):
         self.add_year_loc = add_year_loc
         # add lat, lon, year
         if self.add_year_loc:
+            # add an additional dense layer, to ensure the model
+            # can learn nonlinear relations with the image vector
+            # and the year_loc elements
+            dense_features.insert(2, 128)
+
+            # add 3 elements to the hidden size, so the first dense layer
+            # expects an input which includes the 3 additional elements
             dense_features[0] += 3
-            self.tanh = nn.Tanh()
 
         self.dropout = nn.Dropout(rnn_dropout)
         self.rnn = nn.LSTM(input_size=in_channels * num_bins,
@@ -144,9 +154,6 @@ class RNNet(nn.Module):
 
         for layer_number, dense_layer in enumerate(self.dense_layers):
             x = dense_layer(x)
-            if self.add_year_loc and (layer_number <= len(self.dense_layers) - 2):
-                # add a nonlinearity to all outputs except the last one
-                x = self.tanh(x)
             if return_last_dense and (layer_number == len(self.dense_layers) - 2):
                 output = x
         if return_last_dense:

@@ -46,8 +46,13 @@ The Gaussian Process leverages information about each data point's location and 
 not otherwise have access to. Providing this information (i.e. the year being analyzed, and the image's latitude 
 and longitude) to the neural network too leads to an improvement in results.
 
+Two additional changes were made to the neural networks to account for this additional informaton:
+* An additional linear layer was added to the neural network.
+* No limit was set on the training time. This can be replicated with the `--train_steps=None` argument.
+
 As before, these results were generated using early stopping, with a patience of 10. They can be replicated
-by adding the `--add_year_loc` flag when training the models; all other arguments are the default arguments.
+by adding the `--add_year_loc` flag when training the models; aside from `train_steps`, all other arguments are the 
+default arguments.
 
 In this case, because the Gaussian Process doesn't have access to additional information compared to the neural network,
 the neural network alone is competitive with the neural network and Gaussian Process combination. This has the advantage
@@ -55,13 +60,13 @@ of not requiring feature vectors for the entire dataset to be loaded into memory
 
 | Year | LSTM    | LSTM + GP | CNN    | CNN + GP |
 |:----:|:-------:|:---------:|:------:|:--------:|
-|2009  |**5.00** |5.28       |        |          |
-|2010  |6.08     |6.54       |        |          |
-|2011  |7.61     |6.60       |        |          |
-|2012  |7.99     |6.41       |        |          |
-|2013  |**5.25** |5.65       |        |          |
-|2014  |5.02     |**4.53**   |        |          |
-|2015  |5.23     |**5.11**   |        |          |
+|2009  |**5.23** |5.39       |5.50    |5.28      |
+|2010  |**5.57** |5.93       |6.43    |6.93      |
+|2011  |7.41     |6.50       |6.45    |**6.31**  |
+|2012  |6.14     |6.18       |6.25    |**6.00**  |
+|2013  |**4.92** |5.04       |5.63    |5.49      |
+|2014  |4.73     |**4.40**   |5.10    |4.78      |
+|2015  |5.11     |**4.81**   |4.97    |5.11      |
 
 ## Pipeline
 
@@ -95,15 +100,15 @@ python run.py process
 Takes the exported and downloaded data, and splits the data by year. In addition, the temperature and reflection `tif` 
 files are merged, and the mask is applied so only farmland is considered. Files are saved as `.npy` files.
 
-The size of the processed files is 
+The total size of the `.npy` files is **97 GB**. Running with the flag `delete_when_done=True` will delete the 
+`.tif` files as they get processed. 
 
 #### Feature Engineering
 
 ```bash
 python run.py engineer
 ``` 
-Take the processed `.npy` files and generate histogams which can be input into the models. The total size of the `.npy`
-files is **97 GB**. Running with the flag `delete_when_done=True` will delete the `.tif` files as they get processed. 
+Take the processed `.npy` files and generate histogams which can be input into the models. 
 
 #### Model training
 

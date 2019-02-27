@@ -146,8 +146,9 @@ class RunTask:
             are used.
         num_runs: int, default=2
             The number of runs to do per year. Default taken from the paper
-        train_steps: int, default=25000
-            The number of steps for which to train the model. Default taken from the paper.
+        train_steps: int or None, default=25000
+            The number of steps for which to train the model. Default taken from the paper. If None, no limit
+            is set on the number of training steps. If this the case, patience cannot also be None
         batch_size: int, default=32
             Batch size when training. Default taken from the paper
         starter_learning_rate: float, default=1e-3
@@ -228,8 +229,9 @@ class RunTask:
             are used.
         num_runs: int, default=2
             The number of runs to do per year. Default taken from the paper
-        train_steps: int, default=10000
-            The number of steps for which to train the model. Default taken from the paper.
+        train_steps: int or None, default=25000
+            The number of steps for which to train the model. Default taken from the paper. If None, no limit
+            is set on the number of training steps. If this the case, patience cannot also be None
         batch_size: int, default=32
             Batch size when training. Default taken from the paper
         starter_learning_rate: float, default=1e-3
