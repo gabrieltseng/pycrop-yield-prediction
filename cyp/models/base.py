@@ -4,7 +4,7 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from tqdm import tqdm
 from datetime import datetime
 
@@ -148,7 +148,7 @@ class ModelBase:
         # times in one call to run()
         self.reinitialize_model(time=time)
 
-        train_scores, val_scores = self._train(train_data[0], train_data[1],
+        train_scores, val_scores = self._train(train_data.images, train_data.yields,
                                                train_steps, batch_size,
                                                starter_learning_rate,
                                                weight_decay, l1_weight,
@@ -371,20 +371,25 @@ class ModelBase:
 
         print(f'Train set size: {train_idx.shape[0]}, Test set size: {test_idx.shape[0]}')
 
-        train_images = torch.as_tensor(train_images[:, :, :time, :], device=self.device).float()
-        train_yields = torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1)
-        train_locations = torch.as_tensor(locations[train_idx])
-        train_indices = torch.as_tensor(indices[train_idx])
-        train_years = torch.as_tensor(years[train_idx])
+        Data = namedtuple('Data', ['images', 'yields', 'locations', 'indices', 'years'])
 
-        test_images = torch.as_tensor(test_images[:, :, :time, :], device=self.device).float()
-        test_yields = torch.as_tensor(yields[test_idx], device=self.device).float().unsqueeze(1)
-        test_locations = torch.as_tensor(locations[test_idx])
-        test_indices = torch.as_tensor(indices[test_idx])
-        test_years = torch.as_tensor(years[test_idx])
+        train_data = Data(
+            images=torch.as_tensor(train_images[:, :, :time, :], device=self.device).float(),
+            yields=torch.as_tensor(yields[train_idx], device=self.device).float().unsqueeze(1),
+            locations=torch.as_tensor(locations[train_idx]),
+            indices=torch.as_tensor(indices[train_idx]),
+            years=torch.as_tensor(years[train_idx])
+        )
 
-        return ((train_images, train_yields, train_locations, train_indices, train_years),
-                (test_images, test_yields, test_locations, test_indices, test_years))
+        test_data = Data(
+            images=torch.as_tensor(test_images[:, :, :time, :], device=self.device).float(),
+            yields=torch.as_tensor(yields[test_idx], device=self.device).float().unsqueeze(1),
+            locations=torch.as_tensor(locations[test_idx]),
+            indices=torch.as_tensor(indices[test_idx]),
+            years=torch.as_tensor(years[test_idx])
+        )
+
+        return train_data, test_data
 
     @staticmethod
     def _normalize(train_images, val_images):
