@@ -40,17 +40,17 @@ Once the data has been exported to Google Drive, it can be downloaded to this fo
 
 Specifically, the following datasets are used:
 
-#### 4.a [MOD09A1: Surface Reflectance](https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/mod09a1_v006)
+#### 4.a [MOD09A1: Surface Reflectance](https://modis.gsfc.nasa.gov/data/dataprod/mod09.php)
 
 "An estimate of the surface spectral reflectance of Terra MODIS bands 1 through 7".
 
 Basically, an 'image' of the county as seen from the satellite.
 
-#### 4.b [MCD12Q1: Land Cover Type](https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/mcd12q1)
+#### 4.b [MCD12Q1: Land Cover Type](https://modis.gsfc.nasa.gov/data/dataprod/mod12.php)
 
 Labels the data according to one of five global land cover classification systems. This is used as a mask, because we only
 want to consider pixels associated with farmland.
 
-#### 4.c [MYD11A2: Aqua/Land Surface Temperature](https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/myd11a2_v006)
+#### 4.c [MYD11A2: Aqua/Land Surface Temperature](https://modis.gsfc.nasa.gov/data/dataprod/mod11.php)
 
 Two more bands which can be used as input data to our models.
