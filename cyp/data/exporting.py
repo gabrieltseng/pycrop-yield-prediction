@@ -134,7 +134,14 @@ class MODISExporter:
         # of county geometry and census data:
         # https://fusiontables.google.com/data?docid=1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM#rows:id=1
 
-        region = ee.FeatureCollection('ft:1S4EB6319wWW2sWQDPhDvmSBIVrD3iEmCLYB7nMM')
+        region = ee.FeatureCollection('TIGER/2018/Counties')
+
+        # turn the strings into numbers, see
+        # https://developers.google.com/earth-engine/datasets/catalog/TIGER_2018_Counties
+        def state_to_int(feature):
+            return feature.set('COUNTYFP', ee.Number.parse(feature.get('COUNTYFP')))
+        region = region.map(state_to_int)
+
         count = 0
 
         for state_id, county_id in np.unique(self.locations[['State ANSI', 'County ANSI']].values, axis=0):
@@ -150,8 +157,7 @@ class MODISExporter:
                     print(f'{fname}.tif already downloaded! Skipping')
                     continue
 
-            file_region = region.filterMetadata('StateFips', 'equals', int(state_id))
-            file_region = ee.FeatureCollection(file_region).filterMetadata('CntyFips', 'equals', int(county_id))
+            file_region = region.filterMetadata('COUNTYFP', 'equals', int(county_id))
             file_region = ee.Feature(file_region.first())
             processed_img = img.clip(file_region)
             file_region = None
