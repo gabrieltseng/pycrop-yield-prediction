@@ -22,12 +22,12 @@ def l1_l2_loss(pred, true, l1_weight, scores_dict):
     """
     loss = F.mse_loss(pred, true)
 
-    scores_dict['l2'].append(loss.item())
+    scores_dict["l2"].append(loss.item())
 
     if l1_weight > 0:
         l1 = F.l1_loss(pred, true)
         loss += l1
-        scores_dict['l1'].append(l1.item())
-    scores_dict['loss'].append(loss.item())
+        scores_dict["l1"].append(l1.item())
+    scores_dict["loss"].append(loss.item())
 
     return loss, scores_dict
