@@ -363,7 +363,7 @@ class ModelBase:
                 results["train_loc"].append(train_loc.float().numpy())
                 results["train_years"].extend(train_year.float().tolist())
 
-            for test_x, test_x, test_loc, test_year in tqdm(test_dataloader):
+            for test_x, test_y, test_loc, test_year in tqdm(test_dataloader):
                 model_output = self.model(
                     test_x.float(),
                     return_last_dense=True if (self.gp is not None) else False,
@@ -376,7 +376,7 @@ class ModelBase:
                 else:
                     pred = model_output
                 results["test_pred"].extend(pred.squeeze(1).tolist())
-                results["test_real"].extend(test_x.squeeze(1).tolist())
+                results["test_real"].extend(test_y.float().tolist())
                 results["test_loc"].append(test_loc.float().numpy())
                 results["test_years"].extend(test_year.float().tolist())
 
