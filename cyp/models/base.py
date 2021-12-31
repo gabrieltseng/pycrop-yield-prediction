@@ -359,7 +359,7 @@ class ModelBase:
                 else:
                     pred = model_output
                 results["train_pred"].extend(pred.squeeze(1).tolist())
-                results["train_real"].extend(train_y.float().squeeze(1).tolist())
+                results["train_real"].extend(train_y.float().tolist())
                 results["train_loc"].append(train_loc.float().numpy())
                 results["train_years"].extend(train_year.float().tolist())
 
