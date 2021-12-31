@@ -93,7 +93,7 @@ class ModelBase:
         """
 
         # to collect results
-        run_numbers, rmse_list, me_list = [], [], []
+        run_numbers, rmse_list, me_list, year_list = [], [], [], []
         if self.gp is not None:
             rmse_gp_list, me_gp_list = [], []
 
@@ -124,6 +124,7 @@ class ModelBase:
                     rmse, me = results
                 rmse_list.append(rmse)
                 me_list.append(me)
+                year_list.append(year)
             print("-----------")
 
         # save results to a csv file
@@ -131,6 +132,7 @@ class ModelBase:
             "run_number": run_numbers,
             "RMSE": rmse_list,
             "ME": me_list,
+            "year": year_list,
         }
         if self.gp is not None:
             data["RMSE_GP"] = rmse_gp_list
