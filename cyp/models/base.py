@@ -92,8 +92,6 @@ class ModelBase:
             Note that the original repository doesn't use early stopping.
         """
 
-        dataset = CropYieldDataset(root_dir=datapath)
-
         # to collect results
         run_numbers, rmse_list, me_list = [], [], []
         if self.gp is not None:
@@ -102,29 +100,31 @@ class ModelBase:
         for run_number in range(1, num_runs + 1):
             print(f"Run number {run_number}")
 
-            results = self._run_1_year(
-                dataset,
-                32,
-                run_number,
-                train_steps,
-                batch_size,
-                starter_learning_rate,
-                weight_decay,
-                l1_weight,
-                patience,
-            )
+            for year in [2011, 2012, 2013, 2014, 2015, 2016]:
+                results = self._run_1_year(
+                    datapath,
+                    32,
+                    run_number,
+                    train_steps,
+                    batch_size,
+                    starter_learning_rate,
+                    weight_decay,
+                    l1_weight,
+                    patience,
+                    year,
+                )
 
-            run_numbers.append(run_number)
+                run_numbers.append(run_number)
 
-            if self.gp is not None:
-                rmse, me, rmse_gp, me_gp = results
-                rmse_gp_list.append(rmse_gp)
-                me_gp_list.append(me_gp)
-            else:
-                rmse, me = results
-            rmse_list.append(rmse)
-            me_list.append(me)
-        print("-----------")
+                if self.gp is not None:
+                    rmse, me, rmse_gp, me_gp = results
+                    rmse_gp_list.append(rmse_gp)
+                    me_gp_list.append(me_gp)
+                else:
+                    rmse, me = results
+                rmse_list.append(rmse)
+                me_list.append(me)
+            print("-----------")
 
         # save results to a csv file
         data = {
@@ -140,7 +140,7 @@ class ModelBase:
 
     def _run_1_year(
         self,
-        dataset,
+        datapath,
         time,
         run_number,
         train_steps,
@@ -149,11 +149,14 @@ class ModelBase:
         weight_decay,
         l1_weight,
         patience,
+        year,
     ):
         """
         Train one model on one year of data, and then save the model predictions.
         To be called by run().
         """
+
+        dataset = CropYieldDataset(root_dir=datapath, min_test_year=year)
 
         train_dataset = dataset.get_subset(split="train")
         val_dataset = dataset.get_subset(split="val")

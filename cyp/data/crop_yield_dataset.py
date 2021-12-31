@@ -58,7 +58,7 @@ class CropYieldDataset(SustainBenchDataset):
         download=False,
         split_scheme="official",
         seed=111,
-        filled_mask=False,
+        min_test_year: int = 2011,
     ):
         self._version = version
         self._data_dir = os.path.join(root_dir, "soybeans")
@@ -97,9 +97,18 @@ class CropYieldDataset(SustainBenchDataset):
             split="test", country=self._country
         )
 
-        train_mask = np.ones_like(train_labels) * self._split_dict["train"]
-        val_mask = np.ones_like(val_labels) * self._split_dict["val"]
-        test_mask = np.ones_like(test_labels) * self._split_dict["test"]
+        years = np.concatenate([train_years, val_years, test_years])
+
+        val_ratio = len(val_years) / (len(train_years) + len(val_years))
+        train_val_mask = (years < min_test_year).astype(int)
+
+        train_multiplier = np.random.choice(
+            [0, 1], size=len(train_val_mask), p=[1 - val_ratio, val_ratio]
+        )
+        train_mask = (train_val_mask * train_multiplier) * self._split_dict["train"]
+        val_mask = (train_val_mask * (1 - train_multiplier)) * self._split_dict["val"]
+
+        test_mask = (years == min_test_year).astype(int) * self._split_dict["test"]
 
         self._histograms = np.concatenate([train_data, val_data, test_data])
         self._split_array = np.concatenate([train_mask, val_mask, test_mask])
@@ -107,7 +116,7 @@ class CropYieldDataset(SustainBenchDataset):
         self.metadata = pd.DataFrame(
             data={
                 "key": np.concatenate([train_keys, val_keys, test_keys]),
-                "year": np.concatenate([train_years, val_years, test_years]),
+                "year": years,
                 "y": np.concatenate([train_labels, val_labels, test_labels]),
             }
         )
