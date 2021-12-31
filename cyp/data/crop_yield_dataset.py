@@ -76,7 +76,10 @@ class CropYieldDataset(SustainBenchDataset):
         self.seed = int(seed)
         self._original_resolution = (32, 32)  # checked
 
-        self._split_dict = {"train": 0, "val": 1, "test": 2}
+        # shifted because some data is neither training nor test (e.g. if test year
+        # is 2011, then 2012 is not used for test or training). We use 0 to represent
+        # this.
+        self._split_dict = {"train": 1, "val": 2, "test": 3}
         self._split_names = {"train": "Train", "val": "Val", "test": "Test"}
 
         self._split_scheme = split_scheme
@@ -111,8 +114,7 @@ class CropYieldDataset(SustainBenchDataset):
         test_mask = (years == min_test_year).astype(int) * self._split_dict["test"]
 
         self._histograms = np.concatenate([train_data, val_data, test_data])
-        self._split_array = np.concatenate([train_mask, val_mask, test_mask])
-
+        self._split_array = train_mask + val_mask + test_mask
         self.metadata = pd.DataFrame(
             data={
                 "key": np.concatenate([train_keys, val_keys, test_keys]),

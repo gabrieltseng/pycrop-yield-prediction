@@ -101,6 +101,7 @@ class ModelBase:
             print(f"Run number {run_number}")
 
             for year in [2011, 2012, 2013, 2014, 2015, 2016]:
+                print(f"Running for {year}")
                 results = self._run_1_year(
                     datapath,
                     32,
