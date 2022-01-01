@@ -172,7 +172,7 @@ class ConvNet(nn.Module):
         """
         # the input is [batch, bands, times, bins, bands].
         # Reshape to [batch, bands, times, bins]
-        x = x.permute(0, 2, 3, 1).contiguous()
+        x = x.permute(0, 3, 1, 2).contiguous()
         for block in self.convblocks:
             x = block(x)
 
