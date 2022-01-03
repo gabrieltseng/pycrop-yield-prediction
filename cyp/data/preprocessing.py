@@ -62,7 +62,7 @@ class DataCleaner:
             ["Year", "State ANSI", "County ANSI"]
         ].values
 
-    def process(self, num_years=14, delete_when_done=False):
+    def process(self, num_years=14, delete_when_done=False, checkpoint=True):
         """
         Process all the data.
 
@@ -73,6 +73,9 @@ class DataCleaner:
         delete_when_done: boolean, default=False
             Whether or not to delete the original .tif files once the .npy array
             has been generated.
+        checkpoint: boolean, default=True
+            Whether or not to skip tif files which have already had their .npy arrays
+            written
         """
         if delete_when_done:
             print("Warning! delete_when_done=True will delete the .tif files")
@@ -87,6 +90,7 @@ class DataCleaner:
                     self.yield_data,
                     num_years=num_years,
                     delete_when_done=delete_when_done,
+                    checkpoint=checkpoint,
                 )
         else:
             length = len(self.tif_files)
@@ -114,6 +118,7 @@ class DataCleaner:
                     num_years_iter,
                     delete_when_done_iter,
                     chunksize=chunksize,
+                    checkpoint=checkpoint,
                 )
 
 
@@ -126,6 +131,7 @@ def process_county(
     yield_data,
     num_years,
     delete_when_done,
+    checkpoint,
 ):
     """
     Process and save county level data
@@ -138,6 +144,12 @@ def process_county(
     # add another split for the county, since the tif filenames can
     # sometimes have additional strings at the end
     state, county = int(locations[0]), int(locations[1].split("-")[0])
+
+    if checkpoint & (len(list(savedir.glob(f"*_{state}_{county}.npy"))) == num_years):
+        print(f"{filename} already written - skipping")
+        return None
+    else:
+        print(f"Processing {filename}")
 
     # check all the files exist:
     if not (image_path / filename).exists():
