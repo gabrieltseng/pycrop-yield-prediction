@@ -34,24 +34,53 @@ class RNNModel(ModelBase):
         the CPU
     """
 
-    def __init__(self, in_channels=9, num_bins=32, hidden_size=128, rnn_dropout=0.75,
-                 dense_features=None, savedir=Path('data/models'), use_gp=True,
-                 sigma=1, r_loc=0.5, r_year=1.5, sigma_e=0.01, sigma_b=0.01,
-                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
+    def __init__(
+        self,
+        in_channels=9,
+        num_bins=32,
+        hidden_size=128,
+        rnn_dropout=0.75,
+        dense_features=None,
+        savedir=Path("data/models"),
+        use_gp=True,
+        sigma=1,
+        r_loc=0.5,
+        r_year=1.5,
+        sigma_e=0.01,
+        sigma_b=0.01,
+        device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    ):
 
-        model = RNNet(in_channels=in_channels, num_bins=num_bins, hidden_size=hidden_size,
-                      num_rnn_layers=1, rnn_dropout=rnn_dropout,
-                      dense_features=dense_features)
+        model = RNNet(
+            in_channels=in_channels,
+            num_bins=num_bins,
+            hidden_size=hidden_size,
+            num_rnn_layers=1,
+            rnn_dropout=rnn_dropout,
+            dense_features=dense_features,
+        )
 
         if dense_features is None:
             num_dense_layers = 2
         else:
             num_dense_layers = len(dense_features)
-        model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
-        model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
+        model_weight = f"dense_layers.{num_dense_layers - 1}.weight"
+        model_bias = f"dense_layers.{num_dense_layers - 1}.bias"
 
-        super().__init__(model, model_weight, model_bias, 'rnn', savedir, use_gp, sigma, r_loc, r_year,
-                         sigma_e, sigma_b, device)
+        super().__init__(
+            model,
+            model_weight,
+            model_bias,
+            "rnn",
+            savedir,
+            use_gp,
+            sigma,
+            r_loc,
+            r_year,
+            sigma_e,
+            sigma_b,
+            device,
+        )
 
     def reinitialize_model(self, time=None):
         self.model.initialize_weights()
@@ -63,8 +92,16 @@ class RNNet(nn.Module):
 
     For a description of the parameters, see the RNNModel class.
     """
-    def __init__(self, in_channels=9, num_bins=32, hidden_size=128, num_rnn_layers=1,
-                 rnn_dropout=0.25, dense_features=None):
+
+    def __init__(
+        self,
+        in_channels=9,
+        num_bins=32,
+        hidden_size=128,
+        num_rnn_layers=1,
+        rnn_dropout=0.25,
+        dense_features=None,
+    ):
         super().__init__()
 
         if dense_features is None:
@@ -72,17 +109,22 @@ class RNNet(nn.Module):
         dense_features.insert(0, hidden_size)
 
         self.dropout = nn.Dropout(rnn_dropout)
-        self.rnn = nn.LSTM(input_size=in_channels * num_bins,
-                           hidden_size=hidden_size,
-                           num_layers=num_rnn_layers,
-                           batch_first=True)
+        self.rnn = nn.LSTM(
+            input_size=in_channels * num_bins,
+            hidden_size=hidden_size,
+            num_layers=num_rnn_layers,
+            batch_first=True,
+        )
         self.hidden_size = hidden_size
 
-        self.dense_layers = nn.ModuleList([
-            nn.Linear(in_features=dense_features[i-1],
-                      out_features=dense_features[i])
-            for i in range(1, len(dense_features))
-        ])
+        self.dense_layers = nn.ModuleList(
+            [
+                nn.Linear(
+                    in_features=dense_features[i - 1], out_features=dense_features[i]
+                )
+                for i in range(1, len(dense_features))
+            ]
+        )
 
         self.initialize_weights()
 
@@ -123,8 +165,9 @@ class RNNet(nn.Module):
             # the behaviour of the Dropout Wrapper used in the original repository
             # https://www.tensorflow.org/api_docs/python/tf/nn/rnn_cell/DropoutWrapper
             input_x = x[:, i, :].unsqueeze(1)
-            _, (hidden_state, cell_state) = self.rnn(input_x,
-                                                     (hidden_state, cell_state))
+            _, (hidden_state, cell_state) = self.rnn(
+                input_x, (hidden_state, cell_state)
+            )
             hidden_state = self.dropout(hidden_state)
 
         x = hidden_state.squeeze(0)

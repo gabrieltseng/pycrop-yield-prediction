@@ -33,12 +33,18 @@ class DataCleaner:
     multiprocessing: boolean, default=False
         Whether to use multiprocessing
     """
-    def __init__(self, mask_path=Path('data/crop_yield-data_mask'),
-                 temperature_path=Path('data/crop_yield-data_temperature'),
-                 image_path=Path('data/crop_yield-data_image'),
-                 yield_data_path=Path('data/yield_data.csv'),
-                 savedir=Path('data/img_output'),
-                 multiprocessing=False, processes=4, parallelism=6):
+
+    def __init__(
+        self,
+        mask_path=Path("data/crop_yield-data_mask"),
+        temperature_path=Path("data/crop_yield-data_temperature"),
+        image_path=Path("data/crop_yield-data_image"),
+        yield_data_path=Path("data/yield_data.csv"),
+        savedir=Path("data/img_output"),
+        multiprocessing=False,
+        processes=4,
+        parallelism=6,
+    ):
         self.mask_path = mask_path
         self.temperature_path = temperature_path
         self.image_path = image_path
@@ -52,7 +58,9 @@ class DataCleaner:
         if not self.savedir.exists():
             self.savedir.mkdir()
 
-        self.yield_data = load(yield_data_path)[['Year', 'State ANSI', 'County ANSI']].values
+        self.yield_data = load(yield_data_path)[
+            ["Year", "State ANSI", "County ANSI"]
+        ].values
 
     def process(self, num_years=14, delete_when_done=False):
         """
@@ -70,8 +78,16 @@ class DataCleaner:
             print("Warning! delete_when_done=True will delete the .tif files")
         if not self.multiprocessing:
             for filename in self.tif_files:
-                process_county(filename, self.savedir, self.image_path, self.mask_path, self.temperature_path,
-                               self.yield_data, num_years=num_years, delete_when_done=delete_when_done)
+                process_county(
+                    filename,
+                    self.savedir,
+                    self.image_path,
+                    self.mask_path,
+                    self.temperature_path,
+                    self.yield_data,
+                    num_years=num_years,
+                    delete_when_done=delete_when_done,
+                )
         else:
             length = len(self.tif_files)
             files_iter = iter(self.tif_files)
@@ -87,13 +103,30 @@ class DataCleaner:
 
             with ProcessPoolExecutor() as executor:
                 chunksize = int(max(length / (self.processes * self.parallelism), 1))
-                executor.map(process_county, files_iter, savedir_iter, im_path_iter, mask_path_iter,
-                             temp_path_iter, yd_iter, num_years_iter, delete_when_done_iter,
-                             chunksize=chunksize)
+                executor.map(
+                    process_county,
+                    files_iter,
+                    savedir_iter,
+                    im_path_iter,
+                    mask_path_iter,
+                    temp_path_iter,
+                    yd_iter,
+                    num_years_iter,
+                    delete_when_done_iter,
+                    chunksize=chunksize,
+                )
 
 
-def process_county(filename, savedir, image_path, mask_path, temperature_path, yield_data, num_years,
-                   delete_when_done):
+def process_county(
+    filename,
+    savedir,
+    image_path,
+    mask_path,
+    temperature_path,
+    yield_data,
+    num_years,
+    delete_when_done,
+):
     """
     Process and save county level data
     """
@@ -103,14 +136,30 @@ def process_county(filename, savedir, image_path, mask_path, temperature_path, y
     locations = filename[:-4].split("_")
     state, county = int(locations[0]), int(locations[1])
 
-    image = np.transpose(np.array(gdal.Open(str(image_path / filename)).ReadAsArray(), dtype='uint16'),
-                         axes=(1, 2, 0))
+    # check all the files exist:
+    if not (image_path / filename).exists():
+        print(f"Skipping {filename} - no image")
+    if not (temperature_path / filename).exists():
+        print(f"Skipping {filename} - no temperature")
+    if not (mask_path / filename).exists():
+        print(f"Skipping {filename} - no mask")
 
-    temp = np.transpose(np.array(gdal.Open(str(temperature_path / filename)).ReadAsArray(), dtype='uint16'),
-                        axes=(1, 2, 0))
+    image = np.transpose(
+        np.array(gdal.Open(str(image_path / filename)).ReadAsArray(), dtype="uint16"),
+        axes=(1, 2, 0),
+    )
 
-    mask = np.transpose(np.array(gdal.Open(str(mask_path / filename)).ReadAsArray(), dtype='uint16'),
-                        axes=(1, 2, 0))
+    temp = np.transpose(
+        np.array(
+            gdal.Open(str(temperature_path / filename)).ReadAsArray(), dtype="uint16"
+        ),
+        axes=(1, 2, 0),
+    )
+
+    mask = np.transpose(
+        np.array(gdal.Open(str(mask_path / filename)).ReadAsArray(), dtype="uint16"),
+        axes=(1, 2, 0),
+    )
     # a value of 12 indicates farmland; everything else, we want to ignore
     mask[mask != 12] = 0
     mask[mask == 12] = 1
@@ -119,9 +168,15 @@ def process_county(filename, savedir, image_path, mask_path, temperature_path, y
     # to split it back up now
 
     # num bands and composite period from the MODIS website
-    img_list = divide_into_years(image, bands=7, composite_period=8, num_years=num_years)
-    mask_list = divide_into_years(mask, bands=1, composite_period=365, num_years=num_years, extend=True)
-    temp_list = divide_into_years(temp, bands=2, composite_period=8, num_years=num_years)
+    img_list = divide_into_years(
+        image, bands=7, composite_period=8, num_years=num_years
+    )
+    mask_list = divide_into_years(
+        mask, bands=1, composite_period=365, num_years=num_years, extend=True
+    )
+    temp_list = divide_into_years(
+        temp, bands=2, composite_period=8, num_years=num_years
+    )
 
     img_temp_merge = merge_image_lists(img_list, 7, temp_list, 2)
 
@@ -134,16 +189,17 @@ def process_county(filename, savedir, image_path, mask_path, temperature_path, y
         key = np.array([year, state, county])
         # check if this key is in the yield data
         if np.equal(yield_data[:, :3], key).all(axis=1).max():
-            save_filename = f'{year}_{state}_{county}'
+            save_filename = f"{year}_{state}_{county}"
             np.save(savedir / save_filename, masked_img_temp[i])
     if delete_when_done:
         (image_path / filename).unlink()
         (temperature_path / filename).unlink()
         (mask_path / filename).unlink()
-    print(f'{filename} array written')
+    print(f"{filename} array written")
 
 
 # helper methods for the data cleaning class
+
 
 def divide_into_years(img, bands, composite_period, num_years=14, extend=False):
     """
@@ -174,7 +230,7 @@ def divide_into_years(img, bands, composite_period, num_years=14, extend=False):
     image_list = []
     cur_idx = 0
     for i in range(0, num_years - 1):
-        image_list.append(img[:, :, cur_idx:cur_idx + bands_per_year])
+        image_list.append(img[:, :, cur_idx : cur_idx + bands_per_year])
         cur_idx += bands_per_year
     image_list.append(img[:, :, cur_idx:])
     return image_list
@@ -209,8 +265,10 @@ def merge_image_lists(im_list_1, num_bands_1, im_list_2, num_bands_2):
         individual_images = []
 
         # split the 'year' appended images into individual images
-        for image_1, image_2 in zip(np.split(im1, im1.shape[-1] / num_bands_1, axis=-1),
-                                    np.split(im2, im2.shape[-1] / num_bands_2, axis=-1)):
+        for image_1, image_2 in zip(
+            np.split(im1, im1.shape[-1] / num_bands_1, axis=-1),
+            np.split(im2, im2.shape[-1] / num_bands_2, axis=-1),
+        ):
             individual_images.append(np.concatenate((image_1, image_2), axis=-1))
         merged_list.append(np.concatenate(individual_images, axis=-1))
     return merged_list
@@ -219,7 +277,9 @@ def merge_image_lists(im_list_1, num_bands_1, im_list_2, num_bands_2):
 def mask_image(im_list, mask_list):
     masked_im_list = []
 
-    assert len(im_list) == len(mask_list), "Mask and Image lists are not the same length!"
+    assert len(im_list) == len(
+        mask_list
+    ), "Mask and Image lists are not the same length!"
 
     for img, mask in zip(im_list, mask_list):
         expanded_mask = np.tile(mask, (1, 1, img.shape[2]))

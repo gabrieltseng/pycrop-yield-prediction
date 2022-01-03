@@ -31,10 +31,21 @@ class ConvModel(ModelBase):
         the CPU
     """
 
-    def __init__(self, in_channels=9, dropout=0.5, dense_features=None, time=32,
-                 savedir=Path('data/models'), use_gp=True, sigma=1, r_loc=0.5, r_year=1.5,
-                 sigma_e=0.01, sigma_b=0.01,
-                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
+    def __init__(
+        self,
+        in_channels=9,
+        dropout=0.5,
+        dense_features=None,
+        time=32,
+        savedir=Path("data/models"),
+        use_gp=True,
+        sigma=1,
+        r_loc=0.5,
+        r_year=1.5,
+        sigma_e=0.01,
+        sigma_b=0.01,
+        device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    ):
 
         # save values for reinitialization
         self.in_channels = in_channels
@@ -42,18 +53,34 @@ class ConvModel(ModelBase):
         self.dense_features = dense_features
         self.time = time
 
-        model = ConvNet(in_channels=in_channels, dropout=dropout,
-                        dense_features=dense_features, time=time)
+        model = ConvNet(
+            in_channels=in_channels,
+            dropout=dropout,
+            dense_features=dense_features,
+            time=time,
+        )
 
         if dense_features is None:
             num_dense_layers = 2
         else:
             num_dense_layers = len(dense_features)
-        model_weight = f'dense_layers.{num_dense_layers - 1}.weight'
-        model_bias = f'dense_layers.{num_dense_layers - 1}.bias'
+        model_weight = f"dense_layers.{num_dense_layers - 1}.weight"
+        model_bias = f"dense_layers.{num_dense_layers - 1}.bias"
 
-        super().__init__(model, model_weight, model_bias, 'cnn', savedir, use_gp, sigma, r_loc,
-                         r_year, sigma_e, sigma_b, device)
+        super().__init__(
+            model,
+            model_weight,
+            model_bias,
+            "cnn",
+            savedir,
+            use_gp,
+            sigma,
+            r_loc,
+            r_year,
+            sigma_e,
+            sigma_b,
+            device,
+        )
 
     def reinitialize_model(self, time=None):
 
@@ -62,9 +89,13 @@ class ConvModel(ModelBase):
 
         if time is None:
             time = self.time
-        model = ConvNet(in_channels=self.in_channels, dropout=self.dropout,
-                        dense_features=self.dense_features, time=time)
-        if self.device.type != 'cpu':
+        model = ConvNet(
+            in_channels=self.in_channels,
+            dropout=self.dropout,
+            dense_features=self.dense_features,
+            time=time,
+        )
+        if self.device.type != "cpu":
             model = model.cuda()
         self.model = model
 
@@ -76,6 +107,7 @@ class ConvNet(nn.Module):
     For a description of the parameters, see the ConvModel class.
     Only handles strides of 1 and 2
     """
+
     def __init__(self, in_channels=9, dropout=0.5, dense_features=None, time=32):
         super().__init__()
 
@@ -95,22 +127,31 @@ class ConvNet(nn.Module):
             dense_features = [2048, 1]
         dense_features.insert(0, int(in_out_channels_list[-1] * time * 4))
 
-        assert len(stride_list) == len(in_out_channels_list), \
-            "Stride list and out channels list must be the same length!"
+        assert len(stride_list) == len(
+            in_out_channels_list
+        ), "Stride list and out channels list must be the same length!"
 
-        self.convblocks = nn.ModuleList([
-            ConvBlock(in_channels=in_out_channels_list[i-1],
-                      out_channels=in_out_channels_list[i],
-                      kernel_size=3, stride=stride_list[i],
-                      dropout=dropout) for
-            i in range(1, len(stride_list))
-        ])
+        self.convblocks = nn.ModuleList(
+            [
+                ConvBlock(
+                    in_channels=in_out_channels_list[i - 1],
+                    out_channels=in_out_channels_list[i],
+                    kernel_size=3,
+                    stride=stride_list[i],
+                    dropout=dropout,
+                )
+                for i in range(1, len(stride_list))
+            ]
+        )
 
-        self.dense_layers = nn.ModuleList([
-            nn.Linear(in_features=dense_features[i-1],
-                      out_features=dense_features[i]) for
-            i in range(1, len(dense_features))
-        ])
+        self.dense_layers = nn.ModuleList(
+            [
+                nn.Linear(
+                    in_features=dense_features[i - 1], out_features=dense_features[i]
+                )
+                for i in range(1, len(dense_features))
+            ]
+        )
 
         self.initialize_weights()
 
@@ -151,10 +192,12 @@ class ConvBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, dropout):
         super().__init__()
-        self.conv = Conv2dSamePadding(in_channels=in_channels,
-                                      out_channels=out_channels,
-                                      kernel_size=kernel_size,
-                                      stride=stride)
+        self.conv = Conv2dSamePadding(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+        )
         self.batchnorm = nn.BatchNorm2d(num_features=out_channels)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
@@ -173,9 +216,11 @@ class Conv2dSamePadding(nn.Conv2d):
 
     Note that the padding argument in the initializer doesn't do anything now
     """
+
     def forward(self, input):
-        return conv2d_same_padding(input, self.weight, self.bias, self.stride,
-                                   self.dilation, self.groups)
+        return conv2d_same_padding(
+            input, self.weight, self.bias, self.stride, self.dilation, self.groups
+        )
 
 
 def conv2d_same_padding(input, weight, bias=None, stride=1, dilation=1, groups=1):
@@ -186,20 +231,30 @@ def conv2d_same_padding(input, weight, bias=None, stride=1, dilation=1, groups=1
     filter_rows = weight.size(2)
     effective_filter_size_rows = (filter_rows - 1) * dilation[0] + 1
     out_rows = (input_rows + stride[0] - 1) // stride[0]
-    padding_rows = max(0, (out_rows - 1) * stride[0] + effective_filter_size_rows - input_rows)
-    rows_odd = (padding_rows % 2 != 0)
+    padding_rows = max(
+        0, (out_rows - 1) * stride[0] + effective_filter_size_rows - input_rows
+    )
+    rows_odd = padding_rows % 2 != 0
 
     # same for columns
     input_cols = input.size(3)
     filter_cols = weight.size(3)
     effective_filter_size_cols = (filter_cols - 1) * dilation[1] + 1
     out_cols = (input_cols + stride[1] - 1) // stride[1]
-    padding_cols = max(0, (out_cols - 1) * stride[1] + effective_filter_size_cols - input_cols)
-    cols_odd = (padding_cols % 2 != 0)
+    padding_cols = max(
+        0, (out_cols - 1) * stride[1] + effective_filter_size_cols - input_cols
+    )
+    cols_odd = padding_cols % 2 != 0
 
     if rows_odd or cols_odd:
         input = F.pad(input, [0, int(cols_odd), 0, int(rows_odd)])
 
-    return F.conv2d(input, weight, bias, stride,
-                    padding=(padding_rows // 2, padding_cols // 2),
-                    dilation=dilation, groups=groups)
+    return F.conv2d(
+        input,
+        weight,
+        bias,
+        stride,
+        padding=(padding_rows // 2, padding_cols // 2),
+        dilation=dilation,
+        groups=groups,
+    )

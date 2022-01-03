@@ -16,7 +16,7 @@ def get_tif_files(image_path):
     """
     files = []
     for dir_file in image_path.iterdir():
-        if str(dir_file).endswith('tif'):
+        if str(dir_file).endswith("tif"):
             # strip out the directory so its just the filename
             files.append(str(dir_file.parts[-1]))
     return files
@@ -27,9 +27,10 @@ def load_clean_yield_data(yield_data_filepath):
     Cleans the yield data by making sure any Nan values in the columns we care about
     are removed
     """
-    important_columns = ['Year', 'State ANSI', 'County ANSI', 'Value']
-    yield_data = pd.read_csv(yield_data_filepath).dropna(subset=important_columns,
-                                                         how='any')
+    important_columns = ["Year", "State ANSI", "County ANSI", "Value"]
+    yield_data = pd.read_csv(yield_data_filepath).dropna(
+        subset=important_columns, how="any"
+    )
     return yield_data
 
 
