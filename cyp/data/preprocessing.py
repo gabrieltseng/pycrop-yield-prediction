@@ -134,7 +134,10 @@ def process_county(
     # exporting.py saves the files in a "{state}_{county}.tif" format
     # the last 4 characters are always ".tif"
     locations = filename[:-4].split("_")
-    state, county = int(locations[0]), int(locations[1])
+
+    # add another split for the county, since the tif filenames can
+    # sometimes have additional strings at the end
+    state, county = int(locations[0]), int(locations[1].split("-")[0])
 
     # check all the files exist:
     if not (image_path / filename).exists():
