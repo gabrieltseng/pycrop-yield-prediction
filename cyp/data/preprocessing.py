@@ -139,10 +139,13 @@ def process_county(
     # check all the files exist:
     if not (image_path / filename).exists():
         print(f"Skipping {filename} - no image")
+        return None
     if not (temperature_path / filename).exists():
         print(f"Skipping {filename} - no temperature")
+        return None
     if not (mask_path / filename).exists():
         print(f"Skipping {filename} - no mask")
+        return None
 
     image = np.transpose(
         np.array(gdal.Open(str(image_path / filename)).ReadAsArray(), dtype="uint16"),
