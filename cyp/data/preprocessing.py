@@ -5,6 +5,8 @@ import math
 from itertools import repeat
 from concurrent.futures import ProcessPoolExecutor
 
+from typing import Optional
+
 from .utils import load_clean_yield_data as load
 from .utils import get_tif_files
 
@@ -122,6 +124,25 @@ class DataCleaner:
                 )
 
 
+def check_for_tif_file(filepath: Path, prefix: str) -> Optional[Path]:
+    """
+    Returns a filepath if one exists, else returns None. This is useful
+    because sometimes, Earth Engine exports files with characters added
+    to the end of the filename, e.g. {intended_filename}{-more stuff}.tif
+    """
+    if (filepath / f"{prefix}.tif").exists():
+        return filepath / f"{prefix}.tif"
+
+    files_with_prefix = list(filepath.glob(f"{prefix}-*.tif"))
+    if len(files_with_prefix) == 1:
+        return files_with_prefix[0]
+    elif len(files_with_prefix) == 0:
+        return None
+    elif len(files_with_prefix) > 1:
+        print(f"Multiple files with prefix for {filepath /  prefix}.tif")
+        return None
+
+
 def process_county(
     filename,
     savedir,
@@ -152,13 +173,14 @@ def process_county(
         print(f"Processing {filename}")
 
     # check all the files exist:
-    if not (image_path / filename).exists():
-        print(f"Skipping {filename} - no image")
-        return None
-    if not (temperature_path / filename).exists():
+    image_path = image_path / filename
+    prefix = filename.split(".")[0].split("-")[0]
+    temperature_path = check_for_tif_file(temperature_path, prefix)
+    mask_path = check_for_tif_file(mask_path, prefix)
+    if not temperature_path:
         print(f"Skipping {filename} - no temperature")
         return None
-    if not (mask_path / filename).exists():
+    if not mask_path:
         print(f"Skipping {filename} - no mask")
         return None
 
@@ -168,14 +190,12 @@ def process_county(
     )
 
     temp = np.transpose(
-        np.array(
-            gdal.Open(str(temperature_path / filename)).ReadAsArray(), dtype="uint16"
-        ),
+        np.array(gdal.Open(str(temperature_path)).ReadAsArray(), dtype="uint16"),
         axes=(1, 2, 0),
     )
 
     mask = np.transpose(
-        np.array(gdal.Open(str(mask_path / filename)).ReadAsArray(), dtype="uint16"),
+        np.array(gdal.Open(str(mask_path)).ReadAsArray(), dtype="uint16"),
         axes=(1, 2, 0),
     )
     # a value of 12 indicates farmland; everything else, we want to ignore
