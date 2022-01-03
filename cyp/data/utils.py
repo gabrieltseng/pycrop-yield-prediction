@@ -17,8 +17,7 @@ def get_tif_files(image_path):
     files = []
     for dir_file in image_path.iterdir():
         if str(dir_file).endswith("tif"):
-            # strip out the directory so its just the filename
-            files.append(str(dir_file.parts[-1]))
+            files.append(str(dir_file.name))
     return files
 
 

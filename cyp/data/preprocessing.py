@@ -173,7 +173,6 @@ def process_county(
         print(f"Processing {filename}")
 
     # check all the files exist:
-    image_path = image_path / filename
     prefix = filename.split(".")[0].split("-")[0]
     temperature_path = check_for_tif_file(temperature_path, prefix)
     mask_path = check_for_tif_file(mask_path, prefix)
