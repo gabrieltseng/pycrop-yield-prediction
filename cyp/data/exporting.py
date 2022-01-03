@@ -154,9 +154,13 @@ class MODISExporter:
 
         # turn the strings into numbers, see
         # https://developers.google.com/earth-engine/datasets/catalog/TIGER_2018_Counties
-        def state_to_int(feature):
+        def county_to_int(feature):
             return feature.set("COUNTYFP", ee.Number.parse(feature.get("COUNTYFP")))
 
+        def state_to_int(feature):
+            return feature.set("STATEFP", ee.Number.parse(feature.get("STATEFP")))
+
+        region = region.map(county_to_int)
         region = region.map(state_to_int)
 
         count = 0
@@ -176,7 +180,9 @@ class MODISExporter:
                     print(f"{fname}.tif already downloaded! Skipping")
                     continue
 
-            file_region = region.filterMetadata("COUNTYFP", "equals", int(county_id))
+            file_region = region.filterMetadata(
+                "COUNTYFP", "equals", int(county_id)
+            ).filterMetadata("STATEFP", "equals", int(state_id))
             file_region = ee.Feature(file_region.first())
             processed_img = img.clip(file_region)
             file_region = None
