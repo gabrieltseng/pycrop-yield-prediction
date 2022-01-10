@@ -193,6 +193,12 @@ def process_county(
         axes=(1, 2, 0),
     )
 
+    # From https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD09A1#description,
+    # the temperature bands are in Kelvin, with a scale of 0.02. 11500 therefore represents -43C,
+    # and (with a bin range of 4999), we get to 16500 which represents 57C - this should
+    # comfortably cover the range of expected temperatures for these counties.
+    temp -= 11500
+
     mask = np.transpose(
         np.array(gdal.Open(str(mask_path)).ReadAsArray(), dtype="uint16"),
         axes=(1, 2, 0),
